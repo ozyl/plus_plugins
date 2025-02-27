@@ -14,6 +14,7 @@ export 'package:share_plus_platform_interface/share_plus_platform_interface.dart
         XFile,
         PlatformOptions,
         AndroidIntentOptions,
+        CupertinoActivityType,
         AndroidIntentFlag;
 
 export 'src/share_plus_linux.dart';

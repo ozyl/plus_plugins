@@ -33,7 +33,7 @@ class MethodChannelShare extends SharePlatform {
     final params = <String, dynamic>{'uri': uri.toString()};
 
     _addSharePositionOriginParams(params, sharePositionOrigin);
-    _addAndroidPlatformParams(params, platformOptions);
+    _addPlatformParams(params, platformOptions);
 
     final result = await channel.invokeMethod<String>('shareUri', params) ??
         'dev.fluttercommunity.plus/share/unavailable';
@@ -56,7 +56,7 @@ class MethodChannelShare extends SharePlatform {
     };
 
     _addSharePositionOriginParams(params, sharePositionOrigin);
-    _addAndroidPlatformParams(params, platformOptions);
+    _addPlatformParams(params, platformOptions);
 
     final result = await channel.invokeMethod<String>('share', params) ??
         'dev.fluttercommunity.plus/share/unavailable';
@@ -99,7 +99,7 @@ class MethodChannelShare extends SharePlatform {
     if (text != null) params['text'] = text;
 
     _addSharePositionOriginParams(params, sharePositionOrigin);
-    _addAndroidPlatformParams(params, platformOptions);
+    _addPlatformParams(params, platformOptions);
 
     final result = await channel.invokeMethod<String>('shareFiles', params) ??
         'dev.fluttercommunity.plus/share/unavailable';
@@ -185,6 +185,22 @@ class MethodChannelShare extends SharePlatform {
     }
   }
 
+  void _addSharePositionOriginParams(
+      Map<String, dynamic> params, Rect? sharePositionOrigin) {
+    if (sharePositionOrigin != null) {
+      params['originX'] = sharePositionOrigin.left;
+      params['originY'] = sharePositionOrigin.top;
+      params['originWidth'] = sharePositionOrigin.width;
+      params['originHeight'] = sharePositionOrigin.height;
+    }
+  }
+
+  void _addPlatformParams(
+      Map<String, dynamic> params, PlatformOptions? platformOptions) {
+    _addAndroidPlatformParams(params, platformOptions);
+    _addCupertinoPlatformParams(params, platformOptions);
+  }
+
   void _addAndroidPlatformParams(
       Map<String, dynamic> params, PlatformOptions? platformOptions) {
     if (defaultTargetPlatform != TargetPlatform.android) {
@@ -198,13 +214,16 @@ class MethodChannelShare extends SharePlatform {
     }
   }
 
-  void _addSharePositionOriginParams(
-      Map<String, dynamic> params, Rect? sharePositionOrigin) {
-    if (sharePositionOrigin != null) {
-      params['originX'] = sharePositionOrigin.left;
-      params['originY'] = sharePositionOrigin.top;
-      params['originWidth'] = sharePositionOrigin.width;
-      params['originHeight'] = sharePositionOrigin.height;
+  void _addCupertinoPlatformParams(
+      Map<String, dynamic> params, PlatformOptions? platformOptions) {
+    if (defaultTargetPlatform != TargetPlatform.iOS) {
+      return;
     }
+    final iosExcludedActivityTypes = platformOptions?.cupertinoExcludedActivityTypes;
+    if (iosExcludedActivityTypes?.isNotEmpty != true) {
+      return;
+    }
+    params['excludedActivityTypes'] =
+        iosExcludedActivityTypes?.map((e) => e.name).toList();
   }
 }

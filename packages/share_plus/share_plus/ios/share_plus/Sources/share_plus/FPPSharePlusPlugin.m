@@ -39,6 +39,59 @@ TopViewControllerForViewController(UIViewController *viewController) {
   return viewController;
 }
 
+static NSDictionary *activityTypes;
+
+static void initializeActivityTypeMapping(void) {
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        NSMutableDictionary *originalTypes =
+                [[NSMutableDictionary alloc] initWithDictionary:@{
+                        @"postToFacebook" : UIActivityTypePostToFacebook,
+                        @"postToTwitter" : UIActivityTypePostToTwitter,
+                        @"postToWeibo" : UIActivityTypePostToWeibo,
+                        @"message" : UIActivityTypeMessage,
+                        @"mail" : UIActivityTypeMail,
+                        @"print" : UIActivityTypePrint,
+                        @"copyToPasteboard" : UIActivityTypeCopyToPasteboard,
+                        @"assignToContact" : UIActivityTypeAssignToContact,
+                        @"saveToCameraRoll" : UIActivityTypeSaveToCameraRoll,
+                        @"addToReadingList" : UIActivityTypeAddToReadingList,
+                        @"postToFlickr" : UIActivityTypePostToFlickr,
+                        @"postToVimeo" : UIActivityTypePostToVimeo,
+                        @"postToTencentWeibo" : UIActivityTypePostToTencentWeibo,
+                        @"airDrop" : UIActivityTypeAirDrop,
+                        @"openInIBooks" : UIActivityTypeOpenInIBooks,
+                        @"markupAsPDF" : UIActivityTypeMarkupAsPDF,
+                }];
+
+        if (@available(iOS 15.4, *)) {
+        originalTypes[@"sharePlay"] = UIActivityTypeSharePlay;
+    }
+
+        if (@available(iOS 16.0, *)) {
+        originalTypes[@"collaborationInviteWithLink"] =
+                UIActivityTypeCollaborationInviteWithLink;
+    }
+
+        if (@available(iOS 16.0, *)) {
+        originalTypes[@"collaborationCopyLink"] =
+                UIActivityTypeCollaborationCopyLink;
+    }
+        if (@available(iOS 16.4, *)) {
+        originalTypes[@"addToHomeScreen"] = UIActivityTypeAddToHomeScreen;
+    }
+        activityTypes = originalTypes;
+    });
+}
+
+static UIActivityType activityTypeForString(NSString *activityTypeString) {
+    initializeActivityTypeMapping();
+    if ([activityTypes.allKeys containsObject:activityTypeString]) {
+        return activityTypes[activityTypeString];
+    }
+    return nil;
+}
+
 // We need the companion to avoid ARC deadlock
 @interface UIActivityViewSuccessCompanion : NSObject
 
@@ -254,7 +307,16 @@ TopViewControllerForViewController(UIViewController *viewController) {
         NSNumber *originY = arguments[@"originY"];
         NSNumber *originWidth = arguments[@"originWidth"];
         NSNumber *originHeight = arguments[@"originHeight"];
-
+        NSArray *rawExcludedActivityTypes = arguments[@"excludedActivityTypes"];
+        NSMutableArray *excludedActivityTypes = [[NSMutableArray alloc] init];
+        if (rawExcludedActivityTypes && rawExcludedActivityTypes.count > 0) {
+            for (NSString *type in rawExcludedActivityTypes) {
+                UIActivityType activityType = activityTypeForString(type);
+                if (activityType != nil) {
+                    [excludedActivityTypes addObject:activityType];
+                }
+            }
+        }
         CGRect originRect = CGRectZero;
         if (originX && originY && originWidth && originHeight) {
           originRect =
@@ -285,6 +347,7 @@ TopViewControllerForViewController(UIViewController *viewController) {
 
           [self shareText:shareText
                      subject:shareSubject
+                  excludedActivityTypes:excludedActivityTypes
               withController:topViewController
                     atSource:originRect
                     toResult:result];
@@ -323,6 +386,7 @@ TopViewControllerForViewController(UIViewController *viewController) {
                 withMimeType:mimeTypes
                  withSubject:subject
                     withText:text
+     excludedActivityTypes:excludedActivityTypes
               withController:topViewController
                     atSource:originRect
                     toResult:result];
@@ -347,6 +411,7 @@ TopViewControllerForViewController(UIViewController *viewController) {
               TopViewControllerForViewController(rootViewController);
 
           [self shareUri:uri
+                  excludedActivityTypes:excludedActivityTypes
               withController:topViewController
                     atSource:originRect
                     toResult:result];
@@ -358,6 +423,7 @@ TopViewControllerForViewController(UIViewController *viewController) {
 
 + (void)share:(NSArray *)shareItems
        withSubject:(NSString *)subject
+        excludedActivityTypes:(NSMutableArray *)excludedActivityTypes
     withController:(UIViewController *)controller
           atSource:(CGRect)origin
           toResult:(FlutterResult)result {
@@ -369,6 +435,7 @@ TopViewControllerForViewController(UIViewController *viewController) {
   if (![subject isKindOfClass:[NSNull class]]) {
     [activityViewController setValue:subject forKey:@"subject"];
   }
+  activityViewController.excludedActivityTypes = excludedActivityTypes;
 
   activityViewController.popoverPresentationController.sourceView =
       controller.view;
@@ -413,12 +480,14 @@ TopViewControllerForViewController(UIViewController *viewController) {
 }
 
 + (void)shareUri:(NSString *)uri
+        excludedActivityTypes:excludedActivityTypes
     withController:(UIViewController *)controller
           atSource:(CGRect)origin
           toResult:(FlutterResult)result {
   NSURL *data = [NSURL URLWithString:uri];
   [self share:@[ data ]
          withSubject:nil
+          excludedActivityTypes:excludedActivityTypes
       withController:controller
             atSource:origin
             toResult:result];
@@ -426,6 +495,7 @@ TopViewControllerForViewController(UIViewController *viewController) {
 
 + (void)shareText:(NSString *)shareText
            subject:(NSString *)subject
+        excludedActivityTypes:excludedActivityTypes
     withController:(UIViewController *)controller
           atSource:(CGRect)origin
           toResult:(FlutterResult)result {
@@ -433,6 +503,7 @@ TopViewControllerForViewController(UIViewController *viewController) {
                                                      text:shareText];
   [self share:@[ data ]
          withSubject:subject
+          excludedActivityTypes:excludedActivityTypes
       withController:controller
             atSource:origin
             toResult:result];
@@ -442,6 +513,7 @@ TopViewControllerForViewController(UIViewController *viewController) {
       withMimeType:(NSArray *)mimeTypes
        withSubject:(NSString *)subject
           withText:(NSString *)text
+        excludedActivityTypes:(NSMutableArray *)excludedActivityTypes
     withController:(UIViewController *)controller
           atSource:(CGRect)origin
           toResult:(FlutterResult)result {
@@ -461,6 +533,7 @@ TopViewControllerForViewController(UIViewController *viewController) {
 
   [self share:items
          withSubject:subject
+excludedActivityTypes:excludedActivityTypes
       withController:controller
             atSource:origin
             toResult:result];
